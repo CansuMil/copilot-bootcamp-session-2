@@ -19,16 +19,24 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    description TEXT,
+    completed INTEGER DEFAULT 0,
+    due_date TEXT,
+    priority TEXT DEFAULT 'medium',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
 
 // Insert some initial data
-const initialItems = ['Item 1', 'Item 2', 'Item 3'];
-const insertStmt = db.prepare('INSERT INTO items (name) VALUES (?)');
+const initialItems = [
+  { name: 'Item 1', description: 'Olympics opening ceremony', completed: 0, due_date: '2026-02-06', priority: 'high' },
+  { name: 'Item 2', description: 'Book hotel', completed: 0, due_date: '2025-12-01', priority: 'medium' },
+  { name: 'Item 3', description: 'Buy ski tickets', completed: 1, due_date: '2025-11-15', priority: 'low' }
+];
+const insertStmt = db.prepare('INSERT INTO items (name, description, completed, due_date, priority) VALUES (?, ?, ?, ?, ?)');
 
 initialItems.forEach(item => {
-  insertStmt.run(item);
+  insertStmt.run(item.name, item.description, item.completed, item.due_date, item.priority);
 });
 
 console.log('In-memory database initialized with sample data');
@@ -46,13 +54,13 @@ app.get('/api/items', (req, res) => {
 
 app.post('/api/items', (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, description = '', completed = 0, due_date = null, priority = 'medium' } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim() === '') {
       return res.status(400).json({ error: 'Item name is required' });
     }
 
-    const result = insertStmt.run(name);
+    const result = insertStmt.run(name, description, completed ? 1 : 0, due_date, priority);
     const id = result.lastInsertRowid;
 
     const newItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
@@ -60,6 +68,42 @@ app.post('/api/items', (req, res) => {
   } catch (error) {
     console.error('Error creating item:', error);
     res.status(500).json({ error: 'Failed to create item' });
+  }
+});
+// Update task completion, description, due date, and priority
+app.put('/api/items/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, completed, due_date, priority } = req.body;
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ error: 'Valid item ID is required' });
+    }
+    const existingItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    const updateStmt = db.prepare(`
+      UPDATE items SET
+        name = COALESCE(?, name),
+        description = COALESCE(?, description),
+        completed = COALESCE(?, completed),
+        due_date = COALESCE(?, due_date),
+        priority = COALESCE(?, priority)
+      WHERE id = ?
+    `);
+    updateStmt.run(
+      name,
+      description,
+      typeof completed === 'undefined' ? undefined : (completed ? 1 : 0),
+      due_date,
+      priority,
+      id
+    );
+    const updatedItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
+    res.json(updatedItem);
+  } catch (error) {
+    console.error('Error updating item:', error);
+    res.status(500).json({ error: 'Failed to update item' });
   }
 });
 

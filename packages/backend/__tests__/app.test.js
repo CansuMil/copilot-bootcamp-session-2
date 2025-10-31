@@ -9,10 +9,17 @@ afterAll(() => {
 });
 
 // Test helpers
-const createItem = async (name = 'Temp Item to Delete') => {
+const createItem = async (fields = {}) => {
+  const defaultFields = {
+    name: 'Temp Item to Delete',
+    description: 'desc',
+    due_date: '2026-12-31',
+    priority: 'medium',
+    completed: 0
+  };
   const response = await request(app)
     .post('/api/items')
-    .send({ name })
+    .send({ ...defaultFields, ...fields })
     .set('Accept', 'application/json');
 
   expect(response.status).toBe(201);
@@ -29,17 +36,27 @@ describe('API Endpoints', () => {
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body.length).toBeGreaterThan(0);
 
-      // Check if items have the expected structure
-      const item = response.body[0];
-      expect(item).toHaveProperty('id');
-      expect(item).toHaveProperty('name');
-      expect(item).toHaveProperty('created_at');
+  // Check if items have the expected structure
+  const item = response.body[0];
+  expect(item).toHaveProperty('id');
+  expect(item).toHaveProperty('name');
+  expect(item).toHaveProperty('description');
+  expect(item).toHaveProperty('due_date');
+  expect(item).toHaveProperty('priority');
+  expect(item).toHaveProperty('completed');
+  expect(item).toHaveProperty('created_at');
     });
   });
 
   describe('POST /api/items', () => {
-    it('should create a new item', async () => {
-      const newItem = { name: 'Test Item' };
+    it('should create a new item with all fields', async () => {
+      const newItem = {
+        name: 'Test Item',
+        description: 'Test Desc',
+        due_date: '2026-12-31',
+        priority: 'high',
+        completed: 1
+      };
       const response = await request(app)
         .post('/api/items')
         .send(newItem)
@@ -48,8 +65,46 @@ describe('API Endpoints', () => {
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('id');
       expect(response.body.name).toBe(newItem.name);
+      expect(response.body.description).toBe(newItem.description);
+      expect(response.body.due_date).toBe(newItem.due_date);
+      expect(response.body.priority).toBe(newItem.priority);
+      expect(response.body.completed).toBe(1);
       expect(response.body).toHaveProperty('created_at');
     });
+  describe('PUT /api/items/:id', () => {
+    it('should update an existing item', async () => {
+      const item = await createItem({ name: 'To Update', completed: 0 });
+      const response = await request(app)
+        .put(`/api/items/${item.id}`)
+        .send({ name: 'Updated Name', completed: 1, description: 'Updated Desc', due_date: '2027-01-01', priority: 'low' })
+        .set('Accept', 'application/json');
+      expect(response.status).toBe(200);
+      expect(response.body.name).toBe('Updated Name');
+      expect(response.body.completed).toBe(1);
+      expect(response.body.description).toBe('Updated Desc');
+      expect(response.body.due_date).toBe('2027-01-01');
+      expect(response.body.priority).toBe('low');
+    });
+
+    it('should toggle completion status', async () => {
+      const item = await createItem({ completed: 0 });
+      const response = await request(app)
+        .put(`/api/items/${item.id}`)
+        .send({ completed: 1 })
+        .set('Accept', 'application/json');
+      expect(response.status).toBe(200);
+      expect(response.body.completed).toBe(1);
+    });
+
+    it('should return 404 for non-existent item', async () => {
+      const response = await request(app)
+        .put('/api/items/999999')
+        .send({ name: 'Does Not Exist' })
+        .set('Accept', 'application/json');
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error', 'Item not found');
+    });
+  });
 
     it('should return 400 if name is missing', async () => {
       const response = await request(app)
