@@ -6,7 +6,6 @@ import { server, resetItems } from './mocks/server';
 global.TextEncoder = require('util').TextEncoder;
 if (typeof global.BroadcastChannel === 'undefined') {
   global.BroadcastChannel = class {
-    constructor() {}
     postMessage() {}
     close() {}
     addEventListener() {}
