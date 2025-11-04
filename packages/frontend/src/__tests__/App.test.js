@@ -1,8 +1,6 @@
-import React, { act } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import React from 'react';
+import { render, screen } from '@testing-library/react';
 import App from '../App';
-import { server, rest } from '../setupTests';
 
 describe('App Component', () => {
   test('renders the Olympics header', async () => {

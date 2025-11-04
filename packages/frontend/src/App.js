@@ -31,7 +31,6 @@ function App() {
       setError(null);
     } catch (err) {
       setError('Failed to fetch data: ' + err.message);
-      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
@@ -61,14 +60,14 @@ function App() {
       }
 
       const result = await response.json();
-      setData([...data, result]);
+      const newData = [...data, result];
+      setData(newData);
       setNewItem('');
       setNewDescription('');
       setNewDueDate('');
       setNewPriority('medium');
     } catch (err) {
       setError('Error adding item: ' + err.message);
-      console.error('Error adding item:', err);
     }
   };
   const handleToggleComplete = async (item) => {
@@ -100,7 +99,6 @@ function App() {
       setError(null);
     } catch (err) {
       setError('Error deleting item: ' + err.message);
-      console.error('Error deleting item:', err);
     }
   };
 
